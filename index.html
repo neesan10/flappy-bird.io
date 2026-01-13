@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flappy Bird</title>
+  <style>
+    body {
+      margin: 0;
+      background: #70c5ce;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+    }
+
+    canvas {
+      border: 2px solid #000;
+      background: #70c5ce;
+    }
+
+    #score {
+      position: absolute;
+      top: 15px;
+      font-size: 26px;
+      font-weight: bold;
+      color: white;
+      text-shadow: 2px 2px 4px black;
+    }
+  </style>
+</head>
+<body>
+
+<div id="score">Score: 0</div>
+<canvas id="game" width="320" height="480"></canvas>
+
+<script>
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const scoreText = document.getElementById("score");
+
+  // 🔊 Real sounds
+  const wingSound = new Audio("wing.wav");
+  const pointSound = new Audio("point.wav");
+  const hitSound = new Audio("hit.wav");
+
+  let bird, pipes, frame, score, gameOver, wingFrame;
+
+  function resetGame() {
+    bird = {
+      x: 60,
+      y: 200,
+      width: 28,
+      height: 20,
+      velocity: 0,
+      gravity: 0.5,
+      flap: -8
+    };
+
+    pipes = [];
+    frame = 0;
+    score = 0;
+    gameOver = false;
+    wingFrame = 0;
+  }
+
+  resetGame();
+
+  function flap() {
+    if (!gameOver) {
+      bird.velocity = bird.flap;
+      wingSound.currentTime = 0;
+      wingSound.play();
+      wingFrame = 5; // animate wings
+    }
+  }
+
+  // Any key
+  document.addEventListener("keydown", () => {
+    if (gameOver) resetGame();
+    else flap();
+  });
+
+  canvas.addEventListener("click", flap);
+
+  function addPipe() {
+    const gap = 130;
+    const topHeight = Math.random() * 200 + 40;
+
+    pipes.push({
+      x: canvas.width,
+      top: topHeight,
+      bottom: topHeight + gap,
+      width: 40,
+      passed: false
+    });
+  }
+
+  function update() {
+    if (gameOver) return;
+
+    frame++;
+    bird.velocity += bird.gravity;
+    bird.y += bird.velocity;
+
+    if (wingFrame > 0) wingFrame--;
+
+    if (frame % 90 === 0) addPipe();
+
+    for (let i = pipes.length - 1; i >= 0; i--) {
+      let p = pipes[i];
+      p.x -= 2;
+
+      if (!p.passed && p.x + p.width < bird.x) {
+        p.passed = true;
+        score++;
+        pointSound.currentTime = 0;
+        pointSound.play();
+      }
+
+      if (
+        bird.x + bird.width > p.x &&
+        bird.x < p.x + p.width &&
+        (bird.y < p.top || bird.y + bird.height > p.bottom)
+      ) {
+        endGame();
+      }
+
+      if (p.x + p.width < 0) pipes.splice(i, 1);
+    }
+
+    if (bird.y + bird.height > canvas.height || bird.y < 0) {
+      endGame();
+    }
+
+    scoreText.innerText = gameOver
+      ? `Game Over – Score: ${score} (Press any key)`
+      : `Score: ${score}`;
+  }
+
+  function endGame() {
+    if (!gameOver) {
+      gameOver = true;
+      hitSound.play();
+    }
+  }
+
+  function drawBird() {
+    ctx.save();
+    ctx.translate(bird.x + bird.width / 2, bird.y + bird.height / 2);
+    ctx.rotate(Math.min(bird.velocity / 10, 0.5));
+
+    // Body
+    ctx.fillStyle = "yellow";
+    ctx.fillRect(-14, -10, 28, 20);
+
+    // Wing (animated)
+    ctx.fillStyle = "orange";
+    let wingOffset = wingFrame > 0 ? -6 : 2;
+    ctx.fillRect(-10, wingOffset, 12, 6);
+
+    // Eye
+    ctx.fillStyle = "black";
+    ctx.fillRect(6, -5, 3, 3);
+
+    // Beak
+    ctx.fillStyle = "orange";
+    ctx.fillRect(14, -2, 6, 4);
+
+    ctx.restore();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    drawBird();
+
+    ctx.fillStyle = "green";
+    pipes.forEach(p => {
+      ctx.fillRect(p.x, 0, p.width, p.top);
+      ctx.fillRect(p.x, p.bottom, p.width, canvas.height);
+    });
+  }
+
+  function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  loop();
+</script>
+
+</body>
+</html>
